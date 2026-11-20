@@ -319,8 +319,15 @@ def copy_pack_runtime_data(source_root: Path, output_assets: Path, pack: str,
     pack_id = pack_key(pack)
     original_stage = str(chart.get("stage") or "stage").strip()
     mapped_stage = f"{fmt_song(original_stage)}-{pack_id}"
-    stage_source = source_root / "embedded_contents_file" / pack / "stages" / f"{original_stage}.json"
-    if stage_source.is_file():
+    stage_source = next(
+        (
+            source_root / branch / pack / "stages" / f"{original_stage}.json"
+            for branch in ("embedded_contents_file", "contents_file")
+            if (source_root / branch / pack / "stages" / f"{original_stage}.json").is_file()
+        ),
+        None,
+    )
+    if stage_source is not None:
         stage_data = json.loads(stage_source.read_text(encoding="utf-8-sig"))
     else:
         stage_data = {
@@ -332,9 +339,11 @@ def copy_pack_runtime_data(source_root: Path, output_assets: Path, pack: str,
     stage_out.parent.mkdir(parents=True, exist_ok=True)
     stage_out.write_text(json.dumps(stage_data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     for ext in (".lua", ".hx"):
-        script = source_root / "embedded_contents_file" / pack / "stages" / f"{original_stage}{ext}"
-        if script.is_file():
-            copy_file(script, output_assets / "shared/stages" / f"{mapped_stage}{ext}")
+        for branch in ("embedded_contents_file", "contents_file"):
+            script = source_root / branch / pack / "stages" / f"{original_stage}{ext}"
+            if script.is_file():
+                copy_file(script, output_assets / "shared/stages" / f"{mapped_stage}{ext}")
+                break
 
     characters = {
         str(chart.get(key, "")).strip()
@@ -343,12 +352,17 @@ def copy_pack_runtime_data(source_root: Path, output_assets: Path, pack: str,
     }
     char_out = output_assets / "week_assets" / pack_id / "characters"
     for character in characters:
-        char_file = source_root / "embedded_contents_file" / pack / "characters" / f"{character}.json"
-        copy_file(char_file, char_out / char_file.name)
         for branch in ("embedded_contents_file", "contents_file"):
-            for ext in (".lua", ".hx"):
+            char_file = source_root / branch / pack / "characters" / f"{character}.json"
+            if char_file.is_file():
+                copy_file(char_file, char_out / char_file.name)
+                break
+        for ext in (".lua", ".hx"):
+            for branch in ("embedded_contents_file", "contents_file"):
                 char_script = source_root / branch / pack / "characters" / f"{character}{ext}"
-                copy_file(char_script, char_out / char_script.name)
+                if char_script.is_file():
+                    copy_file(char_script, char_out / char_script.name)
+                    break
 
     # Song-specific events/scripts are loaded from shared/data/<song>.
     for branch in ("embedded_contents_file", "contents_file"):
