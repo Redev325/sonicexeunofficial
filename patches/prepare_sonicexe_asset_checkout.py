@@ -66,6 +66,23 @@ def main() -> None:
             candidates[(pack, slug)] = path
 
     selected_packs = {pack for pack, _ in candidates}
+
+    # The initial checkout includes charts and song audio, but many playable
+    # packs keep their runtime dependencies in separate directories. Expand only
+    # the packs that actually contain a chart + instrumental pair.
+    dependency_directories = (
+        "characters", "stages", "custom_notetypes", "custom_events", "shaders",
+    )
+    dependency_patterns = set()
+    for pack in sorted(selected_packs):
+        for branch in ("embedded_contents_file", "contents_file"):
+            for category in dependency_directories:
+                prefix = f"{branch}/{pack}/{category}/"
+                if any(path.startswith(prefix) for path in tree):
+                    dependency_patterns.add("/" + prefix)
+    if dependency_patterns:
+        git(root, "sparse-checkout", "add", *sorted(dependency_patterns))
+
     needed: set[str] = set()
     needed_sounds: set[str] = set()
     character_script_files = []
@@ -148,15 +165,23 @@ def main() -> None:
             char_id = str(char_id or "").strip()
             if not char_id:
                 continue
-            char_file = root / f"embedded_contents_file/{pack}/characters/{char_id}.json"
-            if not char_file.is_file():
-                continue
-            needed.add(char_file.relative_to(root).as_posix())
-            try:
-                character = json.loads(char_file.read_text(encoding="utf-8-sig"))
-            except Exception:
-                character = {}
-            add_image(pack, character.get("image", ""))
+
+            # Character definitions and scripts can live in either source tree.
+            for char_branch in ("embedded_contents_file", "contents_file"):
+                char_file = root / char_branch / pack / "characters" / f"{char_id}.json"
+                if not char_file.is_file():
+                    continue
+                needed.add(char_file.relative_to(root).as_posix())
+                try:
+                    character = json.loads(char_file.read_text(encoding="utf-8-sig"))
+                except Exception:
+                    character = {}
+                add_image(pack, character.get("image", ""))
+                icon = str(character.get("healthicon", "")).strip()
+                if icon:
+                    add_image(pack, f"icons/icon-{icon}")
+                break
+
             for script_branch in ("embedded_contents_file", "contents_file"):
                 for ext in (".lua", ".hx"):
                     character_script = root / script_branch / pack / "characters" / f"{char_id}{ext}"
@@ -164,18 +189,22 @@ def main() -> None:
                         relative = character_script.relative_to(root).as_posix()
                         needed.add(relative)
                         character_script_files.append((pack, character_script, relative))
-            icon = str(character.get("healthicon", "")).strip()
-            if icon:
-                add_image(pack, f"icons/icon-{icon}")
 
         stage = str(chart.get("stage") or "").strip()
         if stage:
-            for ext in (".json", ".lua", ".hx"):
-                stage_file = root / f"embedded_contents_file/{pack}/stages/{stage}{ext}"
-                if stage_file.is_file():
-                    needed.add(stage_file.relative_to(root).as_posix())
-                    if ext in {".lua", ".hx"}:
-                        read_script_refs(pack, stage_file)
+            for stage_branch in ("embedded_contents_file", "contents_file"):
+                stage_json = root / stage_branch / pack / "stages" / f"{stage}.json"
+                if stage_json.is_file():
+                    needed.add(stage_json.relative_to(root).as_posix())
+                    break
+            for script_branch in ("embedded_contents_file", "contents_file"):
+                for ext in (".lua", ".hx"):
+                    stage_script = root / script_branch / pack / "stages" / f"{stage}{ext}"
+                    if stage_script.is_file():
+                        relative = stage_script.relative_to(root).as_posix()
+                        needed.add(relative)
+                        character_script_files.append((pack, stage_script, relative))
+                        read_script_refs(pack, stage_script)
 
         for branch in ("embedded_contents_file", "contents_file"):
             folder = root / branch / pack / "data" / slug
@@ -198,7 +227,7 @@ def main() -> None:
                         if file.is_file():
                             relative = file.relative_to(root).as_posix()
                             needed.add(relative)
-                            if file.suffix.casefold() in {".lua", ".hx"}:
+                            if file.suffix.casefold() in {".lua", ".hx", ".txt"}:
                                 custom_script_files.append((pack, file, relative))
             shader_folder = root / branch / pack / "shaders"
             if shader_folder.is_dir():
