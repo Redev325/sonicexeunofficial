@@ -71,7 +71,8 @@ def main() -> None:
     # packs keep their runtime dependencies in separate directories. Expand only
     # the packs that actually contain a chart + instrumental pair.
     dependency_directories = (
-        "characters", "stages", "custom_notetypes", "custom_events", "shaders",
+        "characters", "stages", "custom_notetypes", "custom_events",
+        "shaders", "sounds", "music",
     )
     dependency_patterns = set()
     for pack in sorted(selected_packs):
