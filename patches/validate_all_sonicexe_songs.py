@@ -97,7 +97,9 @@ for week_id in week_ids:
             directory = str(stage_data.get("directory") or "").strip()
             if directory:
                 stages_checked.add(directory)
-            for key in ("player1", "player2", "player3", "gfVersion"):
+            # Psych Engine consumes player1/player2/gfVersion directly; player3
+            # is an extra metadata field in some charts and is still imported above.
+            for key in ("player1", "player2", "gfVersion"):
                 character = str(song.get(key) or "").strip()
                 if not character or character.casefold() in {"null", "none"}:
                     continue
@@ -129,4 +131,4 @@ print(
     f"Validated required vocal tracks: {voices_checked}; "
     f"stage asset libraries referenced: {len(stages_checked)}."
 )
-print("Every chart-referenced player character has a matching shared or pack character definition.")
+print("Every engine-loaded player character has a matching shared or pack character definition.")
