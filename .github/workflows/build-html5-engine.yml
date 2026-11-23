@@ -30,6 +30,7 @@ on:
       - "patches/apply_html5_song_script_loading.py"
       - "patches/optimize_media_lossless.py"
       - "patches/validate_sonicexe_story_assets.py"
+      - "patches/validate_all_sonicexe_songs.py"
       - "patches/assets/**"
       - "patches/apply_sonicexe_freeplay_ui.py"
       - "patches/apply_sonicexe_freeplay_menu.py"
@@ -836,6 +837,7 @@ jobs:
           print(f"Indexed {len(scripts)} embedded song HScript files in {manifest}.")
           PY
           python3 patches/validate_sonicexe_story_assets.py engine/assets
+          python3 patches/validate_all_sonicexe_songs.py engine/assets
 
       - name: Convert original game menu and Options music for HTML5
         run: |
