@@ -192,9 +192,9 @@ def main() -> None:
             selected_song_slugs.add(slug)
             selected_song_names.append(title)
 
-            for character in (row[1], chart_song.get("player1"), chart_song.get("player2"), chart_song.get("gfVersion")):
-                if character:
-                    selected_characters.add(str(character))
+            for character in (row[1], chart_song.get("player1"), chart_song.get("player2"), chart_song.get("player3"), chart_song.get("gfVersion")):
+                if character is not None and str(character).strip().casefold() not in {"", "null", "none"}:
+                    selected_characters.add(str(character).strip())
 
             stage = chart_song.get("stage")
             if stage:
@@ -267,9 +267,9 @@ def main() -> None:
         selected_song_slugs.add(slug)
         selected_song_names.append(title)
 
-        for character in (chart_song.get("player1"), chart_song.get("player2"), chart_song.get("gfVersion")):
-            if character:
-                selected_characters.add(str(character))
+        for character in (chart_song.get("player1"), chart_song.get("player2"), chart_song.get("player3"), chart_song.get("gfVersion")):
+            if character is not None and str(character).strip().casefold() not in {"", "null", "none"}:
+                selected_characters.add(str(character).strip())
         stage = chart_song.get("stage")
         if stage:
             selected_stages.add(str(stage))
@@ -457,8 +457,9 @@ def main() -> None:
                         copied_icons += 1
 
         # Character-specific Lua files are optional, but copy them when present.
-        copy_file(char_root / f"{character}.lua",
-                  output_assets / "shared" / "characters" / f"{character}.lua")
+        for ext in (".lua", ".hx"):
+            copy_file(char_root / f"{character}{ext}",
+                      output_assets / "shared" / "characters" / f"{character}{ext}")
 
     # Stage metadata is required for character placement and the correct asset library.
     copied_stages = 0
