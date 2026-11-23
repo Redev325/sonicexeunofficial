@@ -64,7 +64,9 @@ def normalize_chart_characters(chart_folder: Path, character_root: Path) -> int:
         # string "null". Psych Engine treats that as a real character ID.
         for key in ("player3", "gfVersion"):
             value = song.get(key)
-            if isinstance(value, str) and value.strip().casefold() in {"null", "none"}:
+            if isinstance(value, str) and (
+                not value.strip() or value.strip().casefold() in {"null", "none"}
+            ):
                 song[key] = None
                 changed += 1
 
