@@ -512,11 +512,15 @@ def main() -> None:
         # GF definition when a pack references a missing GF character file.
         for key in ("player3", "gfVersion"):
             value = chart.get(key)
-            if isinstance(value, str) and value.strip().casefold() in {"null", "none"}:
+            if isinstance(value, str) and (
+                not value.strip() or value.strip().casefold() in {"null", "none"}
+            ):
                 chart[key] = None
 
         def has_pack_character(character: str) -> bool:
             if character in {"gf", "bf", "dad"}:
+                return True
+            if (output_assets / "shared" / "characters" / f"{character}.json").is_file():
                 return True
             return any(
                 (source_root / branch / pack / "characters" / f"{character}.json").is_file()
