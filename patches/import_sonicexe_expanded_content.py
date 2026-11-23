@@ -506,7 +506,37 @@ def main() -> None:
         # and chart note lanes. Do not replace them with generic BF/Dad/stage data.
         chart.setdefault("player1", "bf")
         chart.setdefault("player2", "dad")
-        chart.setdefault("gfVersion", "gf")
+
+        # Psych Engine treats player3 as the legacy GF slot whenever gfVersion
+        # is null. Normalize literal "null" IDs and fall back to the real base
+        # GF definition when a pack references a missing GF character file.
+        for key in ("player3", "gfVersion"):
+            value = chart.get(key)
+            if isinstance(value, str) and value.strip().casefold() in {"null", "none"}:
+                chart[key] = None
+
+        def has_pack_character(character: str) -> bool:
+            if character in {"gf", "bf", "dad"}:
+                return True
+            return any(
+                (source_root / branch / pack / "characters" / f"{character}.json").is_file()
+                for branch in ("embedded_contents_file", "contents_file")
+            )
+
+        gf_version = chart.get("gfVersion")
+        if isinstance(gf_version, str) and gf_version.strip():
+            if not has_pack_character(gf_version.strip()):
+                print(f"  {display_name}: missing GF '{gf_version}', using default gf")
+                chart["gfVersion"] = "gf"
+        else:
+            legacy_gf = chart.get("player3")
+            if isinstance(legacy_gf, str) and legacy_gf.strip():
+                if not has_pack_character(legacy_gf.strip()):
+                    print(f"  {display_name}: missing legacy GF '{legacy_gf}', using default gf")
+                    chart["player3"] = "gf"
+            else:
+                chart["gfVersion"] = "gf"
+
         chart.setdefault("bpm", 100)
         chart.setdefault("speed", 1)
         chart.setdefault("events", [])
