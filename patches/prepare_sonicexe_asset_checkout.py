@@ -150,9 +150,15 @@ def main() -> None:
             add_sound(pack, value)
 
     for pack, slug in sorted(candidates):
-        for path in tree:
-            if path.startswith(f"contents_file/{pack}/data/{slug}/"):
-                needed.add(path)
+        # Fetch every support file beside each playable chart, not just the
+        # JSON/Lua/HScript extensions included by the initial sparse patterns.
+        # Some packs keep required images, text metadata, and other resources
+        # in embedded_contents_file rather than contents_file.
+        for branch in ("embedded_contents_file", "contents_file"):
+            prefix = f"{branch}/{pack}/data/{slug}/"
+            for path in tree:
+                if path.startswith(prefix):
+                    needed.add(path)
 
         chart_file = root / candidates[(pack, slug)]
         try:
