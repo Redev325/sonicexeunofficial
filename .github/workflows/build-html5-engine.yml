@@ -171,7 +171,7 @@ jobs:
           patch_file("source/backend/NoteTypesConfig.hx", [
               (
                   "if(str == null || !str.contains(':') || !str.contains('=')) noteTypesData.set(name, null);",
-                  "if(str == null || (!str.contains(':') && !str.contains('='))) {\\n\\t\\t\\tnoteTypesData.set(name, null);\\n\\t\\t\\treturn null;\\n\\t\\t}",
+                  "if(str == null || (!str.contains(':') && !str.contains('='))) {\n\t\t\tnoteTypesData.set(name, null);\n\t\t\treturn null;\n\t\t}",
                   "returned safely when a custom note-type config is missing or malformed"
               )
           ])
