@@ -293,19 +293,27 @@ def find_playable_pairs(source_root: Path):
                 chart = song_dir / f"{song_dir.name}.json"
                 if not chart.is_file() or (pack_dir.name, slug) in seen:
                     continue
-                audio_dir = next(
-                    (
-                        source_root / audio_branch / pack_dir.name / "songs" / song_dir.name
-                        for audio_branch in ("contents_file", "embedded_contents_file")
-                        if (source_root / audio_branch / pack_dir.name / "songs" / song_dir.name).is_dir()
-                    ),
-                    None,
-                )
-                if audio_dir is None:
-                    continue
-                instrumental = next((audio_dir / f"Inst{ext}" for ext in (".ogg", ".mp3", ".wav")
-                                     if (audio_dir / f"Inst{ext}").is_file()), None)
-                if instrumental is None:
+                # Prefer the same source tree as the chart, but fall back to the
+                # other tree only when it contains a real instrumental file. A
+                # placeholder/empty audio directory must not hide a valid mix.
+                chart_branch = branch
+                audio_branches = (chart_branch, "contents_file" if chart_branch == "embedded_contents_file" else "embedded_contents_file")
+                audio_dir = None
+                instrumental = None
+                for audio_branch in audio_branches:
+                    candidate_dir = source_root / audio_branch / pack_dir.name / "songs" / song_dir.name
+                    if not candidate_dir.is_dir():
+                        continue
+                    candidate_inst = next(
+                        (candidate_dir / f"Inst{ext}" for ext in (".ogg", ".mp3", ".wav")
+                         if (candidate_dir / f"Inst{ext}").is_file()),
+                        None,
+                    )
+                    if candidate_inst is not None:
+                        audio_dir = candidate_dir
+                        instrumental = candidate_inst
+                        break
+                if audio_dir is None or instrumental is None:
                     continue
                 voices = sorted((p for p in audio_dir.glob("Voices*.*")
                                  if p.suffix.casefold() in {".ogg", ".mp3", ".wav"}),
