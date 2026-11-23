@@ -48,6 +48,50 @@ def copy_folder(source: Path, destination: Path) -> int:
     return copied
 
 
+def normalize_chart_characters(chart_folder: Path, character_root: Path) -> int:
+    """Repair missing GF aliases so old charts use a real browser character."""
+    changed = 0
+    for chart_path in sorted(chart_folder.glob("*-hard.json")):
+        try:
+            chart_data = json.loads(chart_path.read_text(encoding="utf-8-sig"))
+        except Exception as exc:
+            raise SystemExit(f"Could not parse chart {chart_path}: {exc}")
+        song = chart_data.get("song", chart_data) if isinstance(chart_data, dict) else None
+        if not isinstance(song, dict):
+            continue
+
+        # Some converted charts serialize absent character fields as the literal
+        # string "null". Psych Engine treats that as a real character ID.
+        for key in ("player3", "gfVersion"):
+            value = song.get(key)
+            if isinstance(value, str) and value.strip().casefold() in {"null", "none"}:
+                song[key] = None
+                changed += 1
+
+        gf_version = song.get("gfVersion")
+        if isinstance(gf_version, str) and gf_version.strip():
+            if not (character_root / f"{gf_version.strip()}.json").is_file():
+                print(f"  {chart_path.stem}: missing GF '{gf_version}', using default gf")
+                song["gfVersion"] = "gf"
+                changed += 1
+        elif gf_version is None:
+            # Older Psych charts store the GF character in player3. Keep valid
+            # player3 definitions; replace only references absent from the source.
+            legacy_gf = song.get("player3")
+            if isinstance(legacy_gf, str) and legacy_gf.strip():
+                if not (character_root / f"{legacy_gf.strip()}.json").is_file():
+                    print(f"  {chart_path.stem}: missing legacy GF '{legacy_gf}', using default gf")
+                    song["player3"] = "gf"
+                    changed += 1
+
+        if isinstance(chart_data, dict) and isinstance(chart_data.get("song"), dict):
+            chart_data["song"] = song
+        else:
+            chart_data = song
+        chart_path.write_text(json.dumps(chart_data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return changed
+
+
 def merge_sidecar_events(chart_folder: Path) -> int:
     """Merge events.json into each Hard chart because Psych Engine reads chart.events."""
     sidecar = chart_folder / "events.json"
@@ -377,9 +421,13 @@ def main() -> None:
     copied_charts = 0
     copied_audio = 0
     merged_event_records = 0
+    normalized_character_refs = 0
     for slug in sorted(selected_song_slugs):
         chart_output_folder = output_assets / "shared" / "data" / slug
         copied_charts += copy_folder(data_root / slug, chart_output_folder)
+        normalized_character_refs += normalize_chart_characters(
+            chart_output_folder, source_assets / "characters"
+        )
         merged_event_records += merge_sidecar_events(chart_output_folder)
         copied_audio += copy_folder(songs_root / slug, output_assets / "songs" / slug)
 
@@ -607,6 +655,7 @@ def main() -> None:
     print(f"Skipped entries without a matching Hard chart and instrumental: {len(skipped)}")
     for entry in skipped:
         print("  " + entry)
+    print(f"Normalized missing/null GF character references: {normalized_character_refs}.")
     print(
         f"Copied charts/data: {copied_charts}; audio: {copied_audio}; "
         f"character JSONs: {copied_character_defs}; character images: {copied_character_images}; "
