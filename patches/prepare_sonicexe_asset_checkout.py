@@ -162,6 +162,13 @@ def main() -> None:
         if isinstance(chart.get("song"), dict):
             chart = chart["song"]
 
+        # Chart-level note and splash skins are dependencies too; they may not
+        # be referenced by a Lua/HScript file or a character/stage definition.
+        for skin_key in ("arrowSkin", "splashSkin", "noteSkin", "noteSplashSkin"):
+            skin = chart.get(skin_key)
+            if isinstance(skin, str) and skin.strip() and skin.strip().casefold() not in {"null", "none"}:
+                add_image(pack, skin.strip(), include_parent=True)
+
         for char_id in (chart.get("player1"), chart.get("player2"), chart.get("player3"), chart.get("gfVersion")):
             char_id = str(char_id or "").strip()
             if not char_id:
