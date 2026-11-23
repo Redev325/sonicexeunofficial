@@ -165,6 +165,17 @@ jobs:
               path.write_text(source)
               print(f"Patched {path}")
 
+          # Missing custom note-type definitions are valid: some chart note types
+          # are script-handled and do not need property overrides. Return before the
+          # parser calls trim() on a null asset string.
+          patch_file("source/backend/NoteTypesConfig.hx", [
+              (
+                  "if(str == null || !str.contains(':') || !str.contains('=')) noteTypesData.set(name, null);",
+                  "if(str == null || (!str.contains(':') && !str.contains('='))) {\\n\\t\\t\\tnoteTypesData.set(name, null);\\n\\t\\t\\treturn null;\\n\\t\\t}",
+                  "returned safely when a custom note-type config is missing or malformed"
+              )
+          ])
+
           # The Character Editor's directory scan is only supported on sys targets.
           # In the browser build the built-in character list remains available.
           patch_file("source/states/editors/CharacterEditorState.hx", [
